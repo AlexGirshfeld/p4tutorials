@@ -4,6 +4,7 @@
 
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<8>  PROTOCOL_UDP = 0x11;
+const bit<16>  MEMCACHED_REQUEST = 0x35;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -34,6 +35,18 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
+header udp_t {
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<16> length_;
+    bit<16> checksum;
+}
+header memcached_request_t {
+    bit<96> notNeeded;
+    bit<8> lastKeyChar;
+    bit<8> endPacket;
+}
+
 // TODO: Add new headers here
 
 struct metadata {
@@ -41,10 +54,13 @@ struct metadata {
 }
 
 struct headers {
-    ethernet_t   ethernet;
-    ipv4_t       ipv4;
+    ethernet_t   	ethernet;
+    ipv4_t       	ipv4;
+    udp_t	 	udp;
+    memcached_request_t memcached_request;
     // TODO: Add new headers here
 }
+
 
 /*************************************************************************
 *********************** P A R S E R  ***********************************
@@ -70,8 +86,22 @@ parser MyParser(packet_in packet,
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
         transition select(hdr.ipv4.protocol) {
+	    PROTOCOL_UDP: parse_udp;
             default: accept;
         }
+    }
+    
+    state parse_udp {
+        packet.extract(hdr.udp);
+        transition select(hdr.udp.length_) {
+	    MEMCACHED_REQUEST: parse_memcached_request;
+            default: accept;
+        }
+    }
+    
+    state parse_memcached_request {
+        packet.extract(hdr.memcached_request);
+        transition accept;
     }
 }
 
