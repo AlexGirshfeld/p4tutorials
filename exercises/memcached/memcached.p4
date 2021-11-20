@@ -5,6 +5,7 @@
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<8>  PROTOCOL_UDP = 0x11;
 const bit<16>  MEMCACHED_REQUEST = 0x1a;
+contst bit<16> MEMCACHED_RESPONSE = 0x2e;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -41,6 +42,14 @@ header udp_t {
     bit<16> length_;
     bit<16> checksum;
 }
+
+header memcached_response_t{
+    bit<64> zeroMagic;
+    bit<40> valueMagic;
+    bit<8>  space;
+    bit<192> ResponseContent;
+}
+
 header memcached_request_t {
     bit<64> notNeeded;
     bit<24> getKeyWord;
@@ -49,8 +58,6 @@ header memcached_request_t {
     bit<8> lastCharKey;
     bit<8> endPacket;
 }
-
-// TODO: Add new headers here
 
 struct metadata {
     /* empty */
@@ -61,7 +68,7 @@ struct headers {
     ipv4_t       	ipv4;
     udp_t	 	udp;
     memcached_request_t memcached_request;
-    // TODO: Add new headers here
+    memcached_response_t memcached_response;
 }
 
 
@@ -98,14 +105,21 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.udp);
         transition select(hdr.udp.length_) {
 	    MEMCACHED_REQUEST: parse_memcached_request;
+	    MEMCACHED_RESPONSE: parse_memcached_response;
             default: accept;
         }
+    }
+    
+    state parse_memcached_response {
+        packet.extract(hdr.memcached_response);
+        transition accept;
     }
     
     state parse_memcached_request {
         packet.extract(hdr.memcached_request);
         transition accept;
     }
+        
 }
 
 /*************************************************************************
@@ -134,16 +148,38 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
-
+      action rewrite_ipv4_src(ip4Addr_t srcAddr) {
+        bit<32> original_srcAddr;
+	
+	// replace src address
+	original_srcAddr = hdr.ipv4.srcAddr;
+	hdr.ipv4.srcAddr = srcAddr;
+        hdr.udp.checksum = hdr.udp.checksum - (bit<16>)(srcAddr - original_srcAddr);
+    }
+    
     action rewrite_ipv4_dst(ip4Addr_t dstAddr) {
         bit<32> original_dstAddr;
-
-        // TODO: Complete here
-
-        // TODO: Correct the UDP checksum. Use the following pseudo-code and adapt it to your implementation:
-        // hdr.udp.checksum = hdr.udp.checksum - (bit<16>)(dstAddr - original_dstAddr);
+	
+	// replace dest address
+	original_dstAddr = hdr.ipv4.dstAddr;
+	hdr.ipv4.dstAddr = dstAddr;
+	// hdr.ipv4.srcAddr remains the same 
+        hdr.udp.checksum = hdr.udp.checksum - (bit<16>)(dstAddr - original_dstAddr);
     }
-
+    
+     table memcached_request_load_balancing {
+        key = {
+            hdr.memcached_request.lastDigit: exact;
+        }
+        actions = {
+            rewrite_ipv4_dst;
+            drop;
+            NoAction;
+        }
+        size = 8;
+        default_action = drop();
+    }
+    
     table ipv4_lpm {
         key = {
             hdr.ipv4.dstAddr: lpm;
@@ -156,14 +192,33 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = drop();
     }
-
-    // TODO: Add new tables here
+    
+    table memcached_response_forwarding {
+        key = {
+            hdr.memcached_request.ResponseContent: exact;
+        }
+        actions = {
+            rewrite_ipv4_src;
+            drop;
+            NoAction;
+        }
+        size = 1024;
+    }
+    
+    
+  
 
     apply {
-        // TODO: Need to apply other flow tables
-        if (hdr.ipv4.isValid()) {
-            ipv4_lpm.apply();
-        }
+        if(hdr.ipv4.isValid())
+	{
+		if (hdr.memcached_request.isValid()) {
+            		memcached_request_load_balancing.apply();
+        	}
+		if (hdr.memcached_response.isValid()) {
+            		memcached_response_forwarding.apply();
+        	}
+	ipv4_lpm.apply();
+    	}
     }
 }
 
@@ -207,9 +262,11 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
-        packet.emit(hdr.ethernet);
+     packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
-        // TODO: Need to emit other headers
+	packet.emit(hdr.udp);
+	packet.emit(hdr.memcached_request);
+	packet.emit(hdr.memchache_response);
     }
 }
 
