@@ -74,6 +74,7 @@ struct headers {
     udp_t	 	udp;
     memcached_request_t memcached_request;
     memcached_response_t memcached_response;
+    memcached_nokey_response_t memcached_nokey_response;
 }
 
 
