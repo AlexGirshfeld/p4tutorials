@@ -6,6 +6,7 @@ const bit<16> TYPE_IPV4 = 0x800;
 const bit<8>  PROTOCOL_UDP = 0x11;
 const bit<16>  MEMCACHED_REQUEST = 0x1a;
 contst bit<16> MEMCACHED_RESPONSE = 0x2e;
+const bit<16> MEMCACHED_NOKEY_RESPONSE = 0x15;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -48,6 +49,10 @@ header memcached_response_t{
     bit<40> valueMagic;
     bit<8>  space;
     bit<192> ResponseContent;
+}
+
+header memcached_nokey_response_t{
+    bit<104> noKeyResponse;
 }
 
 header memcached_request_t {
@@ -106,12 +111,18 @@ parser MyParser(packet_in packet,
         transition select(hdr.udp.length_) {
 	    MEMCACHED_REQUEST: parse_memcached_request;
 	    MEMCACHED_RESPONSE: parse_memcached_response;
+	    MEMCACHED_NOKEY_RESPONSE: parse_memcached_nokey_response;
             default: accept;
         }
     }
     
     state parse_memcached_response {
         packet.extract(hdr.memcached_response);
+        transition accept;
+    }
+    
+     state parse_memcached_nokey_response {
+        packet.extract(hdr.memcached_nokey_response);
         transition accept;
     }
     
@@ -214,7 +225,7 @@ control MyIngress(inout headers hdr,
 		if (hdr.memcached_request.isValid()) {
             		memcached_request_load_balancing.apply();
         	}
-		if (hdr.memcached_response.isValid()) {
+		if (hdr.memcached_response.isValid() || hdr.memcached_nokey_response.isValid()) {
             		memcached_response_forwarding.apply();
         	}
 	ipv4_lpm.apply();
