@@ -4,9 +4,6 @@
 
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<8>  PROTOCOL_UDP = 0x11;
-const bit<16>  MEMCACHED_REQUEST = 0x1a;
-contst bit<16> MEMCACHED_RESPONSE = 0x2e;
-const bit<16> MEMCACHED_NOKEY_RESPONSE = 0x15;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -44,16 +41,6 @@ header udp_t {
     bit<16> checksum;
 }
 
-header memcached_response_t{
-    bit<64> zeroMagic;
-    bit<40> valueMagic;
-    bit<8>  space;
-    bit<192> ResponseContent;
-}
-
-header memcached_nokey_response_t{
-    bit<104> noKeyResponse;
-}
 
 header memcached_request_t {
     bit<64> notNeeded;
@@ -69,13 +56,12 @@ struct metadata {
 }
 
 struct headers {
-    ethernet_t   	ethernet;
-    ipv4_t       	ipv4;
-    udp_t	 	udp;
-    memcached_request_t memcached_request;
-    memcached_response_t memcached_response;
-    memcached_nokey_response_t memcached_nokey_response;
+    ethernet_t   			ethernet;
+    ipv4_t       			ipv4;
+    udp_t	 			udp;
+    memcached_request_t 		memcached_request;
 }
+
 
 
 /*************************************************************************
@@ -110,27 +96,11 @@ parser MyParser(packet_in packet,
     state parse_udp {
         packet.extract(hdr.udp);
         transition select(hdr.udp.length_) {
-	    MEMCACHED_REQUEST: parse_memcached_request;
-	    MEMCACHED_RESPONSE: parse_memcached_response;
-	    MEMCACHED_NOKEY_RESPONSE: parse_memcached_nokey_response;
+	    0x1a: parse_memcached_request;
             default: accept;
         }
     }
     
-    state parse_memcached_response {
-        packet.extract(hdr.memcached_response);
-        transition accept;
-    }
-    
-     state parse_memcached_nokey_response {
-        packet.extract(hdr.memcached_nokey_response);
-        transition accept;
-    }
-    
-    state parse_memcached_request {
-        packet.extract(hdr.memcached_request);
-        transition accept;
-    }
         
 }
 
@@ -205,9 +175,9 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
     
-    table memcached_response_forwarding {
+    table response_ipv4_lpm {
         key = {
-            hdr.memcached_response.ResponseContent: exact;
+            hdr.ipv4.srcAddr: lpm;
         }
         actions = {
             rewrite_ipv4_src;
@@ -215,34 +185,14 @@ control MyIngress(inout headers hdr,
             NoAction;
         }
         size = 1024;
+        default_action = NoAction();
     }
-    
-    table memcached_nokey_response_forwarding {
-        key = {
-            hdr.memcached_nokey_response.noKeyResponse: exact;
-        }
-        actions = {
-            rewrite_ipv4_src;
-            drop;
-            NoAction;
-        }
-        size = 1024;
-    }
-    
   
-
     apply {
-        if(hdr.ipv4.isValid())
-	{
-		if (hdr.memcached_request.isValid()) {
+	if (hdr.memcached_request.isValid()) {
             		memcached_request_load_balancing.apply();
         	}
-		if (hdr.memcached_response.isValid()) {
-            		memcached_response_forwarding.apply();
-        	}
-		if(hdr.memcached_nokey_response.isValid()){
-			memcached_nokey_response_forwarding.apply();
-		}
+	response_ipv4_lpm.apply();
 	ipv4_lpm.apply();
     	}
     }
