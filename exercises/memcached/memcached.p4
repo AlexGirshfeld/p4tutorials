@@ -207,7 +207,7 @@ control MyIngress(inout headers hdr,
     
     table memcached_response_forwarding {
         key = {
-            hdr.memcached_request.ResponseContent: exact;
+            hdr.memcached_response.ResponseContent: exact;
         }
         actions = {
             rewrite_ipv4_src;
@@ -217,6 +217,17 @@ control MyIngress(inout headers hdr,
         size = 1024;
     }
     
+    table memcached_nokey_response_forwarding {
+        key = {
+            hdr.memcached_nokey_response.noKeyResponse: exact;
+        }
+        actions = {
+            rewrite_ipv4_src;
+            drop;
+            NoAction;
+        }
+        size = 1024;
+    }
     
   
 
@@ -226,9 +237,12 @@ control MyIngress(inout headers hdr,
 		if (hdr.memcached_request.isValid()) {
             		memcached_request_load_balancing.apply();
         	}
-		if (hdr.memcached_response.isValid() || hdr.memcached_nokey_response.isValid()) {
+		if (hdr.memcached_response.isValid()) {
             		memcached_response_forwarding.apply();
         	}
+		if(hdr.memcached_nokey_response.isValid()){
+			memcached_nokey_response_forwarding.apply();
+		}
 	ipv4_lpm.apply();
     	}
     }
