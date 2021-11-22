@@ -246,7 +246,6 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ipv4);
 	packet.emit(hdr.udp);
 	packet.emit(hdr.memcached_request);
-	packet.emit(hdr.memchache_response);
     }
 }
 
