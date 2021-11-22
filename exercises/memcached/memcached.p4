@@ -175,7 +175,7 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
     
-    table response_ipv4_lpm {
+    table response_forwarding {
         key = {
             hdr.ipv4.srcAddr: lpm;
         }
@@ -192,7 +192,7 @@ control MyIngress(inout headers hdr,
 	if (hdr.memcached_request.isValid()) {
             		memcached_request_load_balancing.apply();
         	}
-	response_ipv4_lpm.apply();
+	response_forwarding.apply();
 	ipv4_lpm.apply();
     	}
     }
