@@ -10,13 +10,6 @@
       "action_params": { }
     },
     {
-      "table": "MyIngress.memcached_nokey_response_forwarding",
-      "default_action": true,
-      "action_name": "MyIngress.rewrite_ipv4_src",
-      "action_params": {
-        "srcAddr": "10.0.0.1"
-     },
-    {
       "table": "MyIngress.memcached_response_forwarding",
       "default_action": true,
       "action_name": "MyIngress.rewrite_ipv4_src",
@@ -68,7 +61,7 @@
     {
       "table": "MyIngress.memcached_request_load_balancing",
       "match": {
-        "hdr.memcached_request.lastDigit": [49]
+        "hdr.memcached_request.finalChar": [49]
       },
       "action_name": "MyIngress.rewrite_ipv4_dst",
       "action_params": {
@@ -78,7 +71,7 @@
     {
       "table": "MyIngress.memcached_request_load_balancing",
       "match": {
-        "hdr.memcached_request.lastDigit": [51]
+        "hdr.memcached_request.finalChar": [51]
       },
       "action_name": "MyIngress.rewrite_ipv4_dst",
       "action_params": {
@@ -88,7 +81,7 @@
     {
       "table": "MyIngress.memcached_request_load_balancing",
       "match": {
-        "hdr.memcached_request.lastDigit": [53]
+        "hdr.memcached_request.finalChar": [53]
       },
       "action_name": "MyIngress.rewrite_ipv4_dst",
       "action_params": {
@@ -98,7 +91,7 @@
     {
       "table": "MyIngress.memcached_request_load_balancing",
       "match": {
-        "hdr.memcached_request.lastDigit": [55]
+        "hdr.memcached_request.finalChar": [55]
       },
       "action_name": "MyIngress.rewrite_ipv4_dst",
       "action_params": {
@@ -106,9 +99,29 @@
       }
     },
     {
+      "table": "MyIngress.response_forwarding",
+      "match": {
+        "hdr.ipv4.srcAddr": ["10.0.2.2", 32]
+      },
+      "action_name": "MyIngress.rewrite_ipv4_src",
+      "action_params": {
+        "srcAddr": "10.0.0.1"
+      }
+    },
+    {
+      "table": "MyIngress.response_forwarding",
+      "match": {
+        "hdr.ipv4.srcAddr": ["10.0.3.3", 32]
+      },
+      "action_name": "MyIngress.rewrite_ipv4_src",
+      "action_params": {
+        "srcAddr": "10.0.0.1"
+      }
+    },
+    {
       "table": "MyIngress.memcached_request_load_balancing",
       "match": {
-        "hdr.memcached_request.lastDigit": [57]
+        "hdr.memcached_request.finalChar": [57]
       },
       "action_name": "MyIngress.rewrite_ipv4_dst",
       "action_params": {
