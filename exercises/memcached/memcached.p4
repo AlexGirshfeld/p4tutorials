@@ -100,6 +100,10 @@ parser MyParser(packet_in packet,
             default: accept;
         }
     }
+     state parse_memcached_request {
+        packet.extract(hdr.memcached_request);
+        transition accept;
+    }
     
         
 }
