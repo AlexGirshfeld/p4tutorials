@@ -47,7 +47,7 @@ header memcached_request_t {
     bit<24> getKeyWord;
     bit<8> space;
     bit<32> key;
-    bit<8> lastCharKey;
+    bit<8> finalChar;
     bit<8> endPacket;
 }
 
