@@ -155,7 +155,7 @@ control MyIngress(inout headers hdr,
     
      table memcached_request_load_balancing {
         key = {
-            hdr.memcached_request.lastDigit: exact;
+            hdr.memcached_request.finalChar: exact;
         }
         actions = {
             rewrite_ipv4_dst;
